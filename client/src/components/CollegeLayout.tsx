@@ -1,6 +1,18 @@
 "use client";
-import React, { useState } from "react";
-import { LayoutDashboard, Users, Building2, FileText, Settings, LogOut, School, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  Briefcase,
+  BarChart3,
+  PieChart,
+  Bell,
+  MessageSquare,
+  Settings,
+  LogOut,
+  School
+} from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
 interface LayoutProps {
@@ -10,7 +22,22 @@ interface LayoutProps {
 export default function CollegeLayout({ children }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [userName, setUserName] = useState("Placement Lead");
+  const [userEmail, setUserEmail] = useState("placement@college.edu");
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserName(user.name || "Placement Lead");
+        setUserEmail(user.email || "placement@college.edu");
+      } catch {
+        setUserName("Placement Lead");
+        setUserEmail("placement@college.edu");
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -18,97 +45,120 @@ export default function CollegeLayout({ children }: LayoutProps) {
     router.push("/");
   };
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/college/dashboard" },
-    { name: "Student Directory", icon: Users, path: "/college/students" },
-    { name: "Company Requests", icon: Building2, path: "/college/partnerships" },
-    { name: "Placement Calendar", icon: FileText, path: "/college/drives" },
-    { name: "Settings", icon: Settings, path: "/college/settings" },
+  const mainItems = [
+    { name: "Dashboard", icon: LayoutDashboard, path: "/college/dashboard" },
+    { name: "Placements", icon: Briefcase, path: "/college/drives" },
+    { name: "Students", icon: Users, path: "/college/students" },
+    { name: "Companies", icon: Building2, path: "/college/partnerships" },
+  ];
+
+  const analyticsItems = [
+    { name: "Reports", icon: BarChart3 },
+    { name: "Statistics", icon: PieChart },
+  ];
+
+  const communicationItems = [
+    { name: "Notices", icon: Bell },
+    { name: "Team Talk", icon: MessageSquare },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      
-      {/* --- SIDEBAR --- */}
-      <aside 
-        className={`bg-indigo-900 text-white fixed left-0 top-0 h-screen transition-all duration-300 z-50 flex flex-col border-r border-indigo-800 ${
-          isCollapsed ? "w-20" : "w-64"
-        }`}
-      >
-        {/* Header / Toggle */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-indigo-800">
-          {!isCollapsed && (
-            <h2 className="text-xl font-bold flex items-center gap-2 animate-in fade-in duration-300">
-              <School className="text-yellow-400" /> 
-              <span>Admin<span className="text-indigo-300">Portal</span></span>
-            </h2>
-          )}
-          {isCollapsed && <School className="text-yellow-400 mx-auto" size={24}/>}
-          
-          <button 
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1.5 rounded-lg bg-indigo-800 hover:bg-indigo-700 text-indigo-200 transition-colors absolute -right-3 top-20 shadow-md border border-indigo-700"
-          >
-            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
+    <div className="min-h-screen bg-slate-50 flex">
+      <aside className="w-72 bg-white border-r border-slate-200 fixed left-0 top-0 h-screen z-50 flex flex-col">
+        <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+            <School size={20} />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Recruit Sage</div>
+            <div className="text-xs text-slate-500">Placement Cell</div>
+          </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-2 mt-4">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.path;
-            return (
-              <button
-                key={item.name}
-                onClick={() => router.push(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group relative ${
-                  isActive ? "bg-indigo-600 text-white shadow-md" : "text-indigo-200 hover:bg-indigo-800 hover:text-white"
-                } ${isCollapsed ? "justify-center" : ""}`}
-              >
-                <item.icon size={22} className={`shrink-0 ${isActive ? "text-white" : "text-indigo-300 group-hover:text-white"}`} />
-                
-                {!isCollapsed && (
-                  <span className="font-medium truncate">{item.name}</span>
-                )}
+        <nav className="flex-1 px-4 py-5 space-y-6">
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Main</div>
+            <div className="space-y-1">
+              {mainItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                {/* Tooltip on Collapse */}
-                {isCollapsed && (
-                  <div className="absolute left-14 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                    {item.name}
-                  </div>
-                )}
-              </button>
-            );
-          })}
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Analytics</div>
+            <div className="space-y-1">
+              {analyticsItems.map((item) => (
+                <div
+                  key={item.name}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400"
+                >
+                  <item.icon size={18} />
+                  <span>{item.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Communication</div>
+            <div className="space-y-1">
+              {communicationItems.map((item) => (
+                <div
+                  key={item.name}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400"
+                >
+                  <item.icon size={18} />
+                  <span>{item.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </nav>
 
-        {/* Footer */}
-        <div className="p-3 border-t border-indigo-800">
+        <div className="px-4 py-4 border-t border-slate-200">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
+            <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-semibold">
+              {userName.split(" ").map((part: string) => part[0]).slice(0, 2).join("").toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-slate-700 truncate">{userName}</div>
+              <div className="text-xs text-slate-400 truncate">{userEmail}</div>
+            </div>
+            <button onClick={() => router.push("/college/settings")} className="text-slate-400 hover:text-slate-600">
+              <Settings size={16} />
+            </button>
+          </div>
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center gap-3 px-3 py-3 text-red-300 hover:bg-red-900/30 rounded-lg transition-colors ${
-              isCollapsed ? "justify-center" : ""
-            }`}
+            className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
           >
-            <LogOut size={20} />
-            {!isCollapsed && <span className="font-medium">Sign Out</span>}
+            <LogOut size={16} />
+            Sign Out
           </button>
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT WRAPPER --- */}
-      <div 
-        className={`flex-1 transition-all duration-300 ${
-          isCollapsed ? "ml-20" : "ml-64"
-        } relative`}
-      >
-        <div className="absolute top-4 right-6 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">
+      <div className="flex-1 ml-72 relative">
+        <div className="absolute top-4 right-6 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
           College Dashboard
         </div>
-        {/* Pass the children (the page content) here */}
         {children}
       </div>
-
     </div>
   );
 }

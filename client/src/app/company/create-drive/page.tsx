@@ -110,7 +110,7 @@ export default function CreateDrive() {
                                 <option value="">Select a College</option>
                                 {partners.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
                             </select>
-                            {partners.length === 0 && <p className="text-xs text-red-500 mt-1">No partners found. Connect in 'Network' first.</p>}
+                            {partners.length === 0 && <p className="text-xs text-red-500 mt-1">No partners found. Connect in Campus Drives first.</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">CTC / Package</label>

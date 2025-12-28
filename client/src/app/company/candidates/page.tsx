@@ -1,30 +1,21 @@
 "use client";
 import React from "react";
 import CompanyLayout from "../../../components/CompanyLayout";
-import {
-  Search,
-  Bell,
-  Moon,
-  ArrowUpRight,
-  CalendarClock,
-  ClipboardCheck,
-  Timer,
-  Users
-} from "lucide-react";
+import { Search, Bell, Moon, ArrowUpRight, CalendarClock, Users, ClipboardCheck, Timer } from "lucide-react";
 
-export default function CompanyDashboard() {
+export default function CandidatesPage() {
   const stats = [
     { title: "Total Candidates", value: "1,248", change: "+12%", icon: Users, color: "blue" },
     { title: "Offer Acceptance", value: "86%", change: "Steady", icon: ClipboardCheck, color: "purple" },
     { title: "Avg. Time to Hire", value: "14d", change: "2 days faster", icon: Timer, color: "amber" },
   ];
 
-  const columns = [
+  const pipeline = [
     {
       title: "Applied",
       count: 24,
       cards: [
-        { name: "Rohan Das", meta: "BITS Pilani '24", tags: ["Java", "React"], time: "2h ago" },
+        { name: "Rohan Das", meta: "BITS Pilani '24", tags: ["Java", "React"], time: "2h ago", badge: "New" },
         { name: "Kavya Sharma", meta: "IIT Delhi '23", tags: ["Python", "Django"], time: "5h ago" },
       ],
     },
@@ -32,7 +23,7 @@ export default function CompanyDashboard() {
       title: "Screening",
       count: 8,
       cards: [
-        { name: "Amit Patel", meta: "VIT Vellore '24", score: "85/100", tag: "Assessment Score" },
+        { name: "Amit Patel", meta: "VIT Vellore '24", score: "85/100", label: "Assessment Score" },
         { name: "Priya Singh", meta: "SRM '24", note: "Strong portfolio in UI/UX. Coding round pending." },
       ],
     },
@@ -50,13 +41,13 @@ export default function CompanyDashboard() {
       <div className="px-8 py-6">
         <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Recruitment Pipeline</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Candidates</h1>
             <p className="text-sm text-slate-500">Software Engineer II</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
               <Search size={16} className="text-slate-400" />
-              <input placeholder="Search candidate..." className="outline-none text-sm w-48 text-slate-600" />
+              <input placeholder="Search by name, tag..." className="outline-none text-sm w-48 text-slate-600" />
             </div>
             <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
               <Bell size={16} />
@@ -70,7 +61,7 @@ export default function CompanyDashboard() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6">
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               {stats.map((stat) => (
@@ -92,23 +83,25 @@ export default function CompanyDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {columns.map((column) => (
-                <div key={column.title} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              {pipeline.map((stage) => (
+                <div key={stage.title} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-sm font-semibold text-slate-800">
-                      {column.title} <span className="text-xs text-slate-400 ml-2">{column.count}</span>
+                      {stage.title} <span className="text-xs text-slate-400 ml-2">{stage.count}</span>
                     </div>
                     <button className="text-xs text-slate-400">...</button>
                   </div>
                   <div className="space-y-4">
-                    {column.cards.map((card) => (
+                    {stage.cards.map((card) => (
                       <div key={card.name} className="border border-slate-100 rounded-xl p-3">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-sm font-semibold text-slate-800">{card.name}</div>
                             <div className="text-xs text-slate-500">{card.meta}</div>
                           </div>
-                          {card.time && <span className="text-xs text-slate-400">{card.time}</span>}
+                          {card.badge && (
+                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">{card.badge}</span>
+                          )}
                         </div>
                         {card.tags && (
                           <div className="flex gap-2 mt-3">
@@ -121,7 +114,7 @@ export default function CompanyDashboard() {
                         )}
                         {card.score && (
                           <div className="mt-3 text-xs text-slate-500">
-                            {card.tag}: <span className="font-semibold text-slate-700">{card.score}</span>
+                            {card.label}: <span className="font-semibold text-slate-700">{card.score}</span>
                           </div>
                         )}
                         {card.note && (
@@ -132,7 +125,7 @@ export default function CompanyDashboard() {
                             {card.meeting}
                           </div>
                         )}
-                        {card.meeting && card.time && (
+                        {card.time && (
                           <div className="mt-2 text-xs text-slate-500">{card.time}</div>
                         )}
                       </div>
@@ -143,15 +136,15 @@ export default function CompanyDashboard() {
             </div>
           </div>
 
-          <div className="bg-slate-900 text-white rounded-2xl p-5 h-fit shadow-sm">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 h-fit shadow-sm">
             <div className="text-xs uppercase text-slate-400 mb-3">Upcoming Event</div>
-            <div className="text-lg font-semibold mb-1">Campus Drive at MIT</div>
-            <div className="text-xs text-slate-300 mb-4">Tomorrow, 10:00 AM</div>
-            <button className="w-full flex items-center justify-center gap-2 bg-white text-slate-900 rounded-lg py-2 text-sm font-semibold">
+            <div className="text-lg font-semibold text-slate-900 mb-1">Campus Drive at MIT</div>
+            <div className="text-xs text-slate-500 mb-4">Tomorrow, 10:00 AM</div>
+            <button className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold">
               View Schedule <ArrowUpRight size={14} />
             </button>
             <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
-              <CalendarClock size={14} /> 3 interviews scheduled
+              <CalendarClock size={14} /> 2 interviews scheduled
             </div>
           </div>
         </div>

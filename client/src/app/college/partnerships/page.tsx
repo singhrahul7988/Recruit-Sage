@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import CollegeLayout from "../../../components/CollegeLayout";
-import { Building2, CheckCircle, XCircle, Clock, Search, MoreVertical } from "lucide-react";
+import { Building2, Clock, Search, Bell, Moon, ChevronDown, Mail, Phone } from "lucide-react";
 import api from "@/lib/api";
 
 export default function CompanyRequests() {
@@ -42,66 +42,145 @@ export default function CompanyRequests() {
   // Filter lists
   const pendingRequests = requests.filter(r => r.status === 'Pending');
   const activePartners = requests.filter(r => r.status === 'Active');
+  const displayedCompanies = activeTab === "pending" ? pendingRequests : activePartners;
 
   return (
     <CollegeLayout>
-      <div className="p-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Partnerships</h1>
-          <p className="text-gray-500">Manage company connections and approvals.</p>
+      <div className="px-8 py-6">
+        <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Companies Overview</h1>
+            <p className="text-sm text-slate-500">Monitor partnerships and recruiting activity.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+              <Search size={16} className="text-slate-400" />
+              <input placeholder="Search companies..." className="outline-none text-sm w-44 text-slate-600" />
+            </div>
+            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
+              <Moon size={16} />
+            </button>
+            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
+              <Bell size={16} />
+            </button>
+          </div>
         </header>
 
-        {/* TABS */}
-        <div className="flex gap-6 border-b border-gray-200 mb-8">
-          <button onClick={() => setActiveTab("pending")} className={`pb-3 font-medium flex items-center gap-2 ${activeTab === "pending" ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500"}`}>
-            <Clock size={20}/> Pending Requests ({pendingRequests.length})
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Active Companies</div>
+            <div className="text-2xl font-semibold text-slate-900">{activePartners.length}</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Pending Invites</div>
+            <div className="text-2xl font-semibold text-slate-900">{pendingRequests.length}</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Active Drives</div>
+            <div className="text-2xl font-semibold text-slate-900">0</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Avg. CTC Offer</div>
+            <div className="text-2xl font-semibold text-slate-900">Rs 0 L</div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+            All Sectors <ChevronDown size={14} />
           </button>
-          <button onClick={() => setActiveTab("active")} className={`pb-3 font-medium flex items-center gap-2 ${activeTab === "active" ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500"}`}>
-            <Building2 size={20}/> Active Partners ({activePartners.length})
+          <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+            Status <ChevronDown size={14} />
+          </button>
+          <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+            Tier <ChevronDown size={14} />
+          </button>
+          <button className="ml-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            Add Company
           </button>
         </div>
 
-        {/* LIST VIEW */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {(activeTab === "pending" ? pendingRequests : activePartners).map((req) => {
-             // Determine which user is the "Other" party (The Company)
-             const company = req.requesterId.role === 'company' ? req.requesterId : req.recipientId;
-             
-             return (
-              <div key={req._id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-start gap-4">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">
-                    {company.name[0]}
-                </div>
-                <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h3 className="font-bold text-gray-800 text-lg">{company.name}</h3>
-                            <p className="text-sm text-gray-500">{company.email}</p>
-                            <p className="text-xs text-gray-400 mt-1">Sent: {new Date(req.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        {activeTab === "active" && <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Connected</span>}
-                    </div>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => setActiveTab("active")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+              activeTab === "active" ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600"
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+              activeTab === "pending" ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600"
+            }`}
+          >
+            Pending
+          </button>
+        </div>
 
-                    {/* ACTIONS FOR PENDING */}
-                    {activeTab === "pending" && (
-                        <div className="flex gap-3 mt-4">
-                            <button onClick={() => handleRespond(req._id, 'Active')} className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
-                                Accept
-                            </button>
-                            <button onClick={() => handleRespond(req._id, 'Rejected')} className="flex-1 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                                Decline
-                            </button>
-                        </div>
+        <div className="space-y-4">
+          {displayedCompanies.map((req) => {
+            const company = req.requesterId.role === 'company' ? req.requesterId : req.recipientId;
+            return (
+              <div key={req._id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center font-semibold text-slate-700">
+                    {company.name?.[0] || "C"}
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="font-semibold text-slate-800">{company.name}</div>
+                    <div className="text-xs text-slate-500">{company.email}</div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
+                      <span className="inline-flex items-center gap-1"><Mail size={12} /> Email</span>
+                      <span className="inline-flex items-center gap-1"><Phone size={12} /> Contact</span>
+                    </div>
+                  </div>
+                  <div className="min-w-[180px]">
+                    <div className="text-xs text-slate-500">Hiring Status</div>
+                    <span className={`inline-flex mt-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                      req.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                    }`}>
+                      {req.status === "Active" ? "Active" : "Pending Review"}
+                    </span>
+                  </div>
+                  <div className="min-w-[200px] text-sm text-slate-600">
+                    <div className="text-xs text-slate-500">Total Hires</div>
+                    <div className="font-semibold text-slate-800">0 Students</div>
+                  </div>
+                  <div className="min-w-[200px] text-sm text-slate-600">
+                    <div className="text-xs text-slate-500">Avg Package</div>
+                    <div className="font-semibold text-slate-800">0 LPA</div>
+                  </div>
+                  <div className="ml-auto flex items-center gap-3">
+                    {req.status === "Pending" ? (
+                      <>
+                        <button onClick={() => handleRespond(req._id, 'Active')} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold">
+                          Accept
+                        </button>
+                        <button onClick={() => handleRespond(req._id, 'Rejected')} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold">
+                          Decline
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold">
+                          View Profile
+                        </button>
+                        <button className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">
+                          Manage Drive
+                        </button>
+                      </>
                     )}
+                  </div>
                 </div>
               </div>
-             );
+            );
           })}
 
-          {/* EMPTY STATE */}
-          {(activeTab === "pending" ? pendingRequests : activePartners).length === 0 && (
-            <div className="col-span-2 text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-                <p className="text-gray-400">No {activeTab} partnerships found.</p>
+          {displayedCompanies.length === 0 && !loading && (
+            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
+              No {activeTab} companies found.
             </div>
           )}
         </div>

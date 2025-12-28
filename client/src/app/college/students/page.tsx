@@ -2,12 +2,23 @@
 import React, { useState, useEffect } from "react";
 // 1. IMPORT THE NEW LAYOUT (Instead of Sidebar)
 import CollegeLayout from "../../../components/CollegeLayout"; 
-import { UserPlus, Upload, FileText, CheckCircle, AlertCircle, Download, Trash2, Search } from "lucide-react";
+import {
+  UserPlus,
+  Upload,
+  Download,
+  Trash2,
+  Search,
+  Bell,
+  Moon,
+  ChevronDown,
+  RefreshCw
+} from "lucide-react";
 import api from "@/lib/api";
 import * as XLSX from "xlsx";
 
 export default function StudentDirectory() {
   const [activeMethod, setActiveMethod] = useState("manual");
+  const [showPanel, setShowPanel] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", branch: "", cgpa: "", phone: "" });
   
   // BULK STATE
@@ -141,103 +152,218 @@ export default function StudentDirectory() {
     s.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalStudents = students.length;
+  const eligibleCount = students.filter(s => parseFloat(s.cgpa || "0") >= 7).length;
+  const activeCount = students.filter(s => !s.isFirstLogin).length;
+
   // --- THE NEW LAYOUT WRAPPER ---
   return (
     <CollegeLayout>
-      {/* Note: We removed <div flex>, <CollegeSidebar>, and <main ml-64> */}
-      {/* We just wrap the content in a simple padding div */}
-      
-      <div className="p-8"> 
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Directory</h1>
+      <div className="px-8 py-6">
+        <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Students Directory</h1>
+            <p className="text-sm text-slate-500">Manage student profiles and placement readiness.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
+              <Moon size={16} />
+            </button>
+            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
+              <Bell size={16} />
+            </button>
+            <button
+              onClick={() => { setShowPanel(true); setActiveMethod("manual"); }}
+              className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold"
+            >
+              <UserPlus size={16} /> Add Student
+            </button>
+          </div>
+        </header>
+
         {errorMsg && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMsg}
           </div>
         )}
 
-        {/* ONBOARDING SECTION */}
-        <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm mb-10">
-            <h3 className="font-bold text-xl mb-6 flex items-center gap-2">
-                <UserPlus className="text-indigo-600"/> Onboard New Students
-            </h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Total Students</div>
+            <div className="text-2xl font-semibold text-slate-900">{totalStudents}</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Eligible for Placement</div>
+            <div className="text-2xl font-semibold text-slate-900">{eligibleCount}</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Active Students</div>
+            <div className="text-2xl font-semibold text-slate-900">{activeCount}</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+            <button
+              onClick={() => { setShowPanel(true); setActiveMethod("bulk"); }}
+              className="flex items-center gap-2 text-sm text-slate-600"
+            >
+              <Upload size={16} /> Bulk Upload
+            </button>
+            <button onClick={downloadTemplate} className="flex items-center gap-2 text-sm text-slate-600">
+              <Download size={16} /> Export
+            </button>
+          </div>
+        </div>
 
-            <div className="flex gap-4 mb-6">
-                <button onClick={() => setActiveMethod("manual")} className={`px-4 py-2 rounded-lg text-sm font-bold ${activeMethod === "manual" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Manual Entry</button>
-                <button onClick={() => setActiveMethod("bulk")} className={`px-4 py-2 rounded-lg text-sm font-bold ${activeMethod === "bulk" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Bulk Upload</button>
+        {showPanel && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-semibold text-slate-800">Add Students</div>
+              <button
+                onClick={() => setShowPanel(false)}
+                className="text-xs text-slate-500 hover:text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={() => setActiveMethod("manual")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                  activeMethod === "manual" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                Manual Entry
+              </button>
+              <button
+                onClick={() => setActiveMethod("bulk")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                  activeMethod === "bulk" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                Bulk Upload
+              </button>
             </div>
 
             {activeMethod === "manual" ? (
-                <form onSubmit={handleAddStudent} className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                        <input required placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="p-3 border rounded-lg"/>
-                        <input required placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="p-3 border rounded-lg"/>
-                        <input required placeholder="Branch" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} className="p-3 border rounded-lg"/>
-                        <input required placeholder="CGPA" value={formData.cgpa} onChange={e => setFormData({...formData, cgpa: e.target.value})} className="p-3 border rounded-lg"/>
-                        <input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="p-3 border rounded-lg"/>
-                    </div>
-                    <button type="submit" className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Add Student</button>
-                </form>
+              <form onSubmit={handleAddStudent} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input required placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="p-3 border border-slate-200 rounded-lg bg-slate-50"/>
+                  <input required placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="p-3 border border-slate-200 rounded-lg bg-slate-50"/>
+                  <input required placeholder="Branch" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} className="p-3 border border-slate-200 rounded-lg bg-slate-50"/>
+                  <input required placeholder="CGPA" value={formData.cgpa} onChange={e => setFormData({...formData, cgpa: e.target.value})} className="p-3 border border-slate-200 rounded-lg bg-slate-50"/>
+                  <input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="p-3 border border-slate-200 rounded-lg bg-slate-50"/>
+                </div>
+                <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold">Add Student</button>
+              </form>
             ) : (
-                <div className="flex items-center gap-4">
-                    <button onClick={downloadTemplate} className="text-sm text-blue-600 underline">Download Template</button>
-                    <input type="file" onChange={handleFileChange} accept=".xlsx, .csv" />
-                    <button onClick={processBulkUpload} disabled={!bulkFile || isUploading} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">{isUploading ? "Uploading..." : "Process File"}</button>
-                </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <input type="file" onChange={handleFileChange} accept=".xlsx, .csv" className="text-sm text-slate-600"/>
+                <button onClick={processBulkUpload} disabled={!bulkFile || isUploading} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold">
+                  {isUploading ? "Uploading..." : "Process File"}
+                </button>
+                <button onClick={downloadTemplate} className="text-sm text-blue-600">
+                  Download Template
+                </button>
+              </div>
             )}
-        </div>
+          </div>
+        )}
 
-        {/* STUDENT LIST TABLE */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="font-bold text-lg text-gray-800">Enrolled Students ({students.length})</h3>
-                <div className="relative">
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                    <input 
-                        placeholder="Search by name or email..." 
-                        className="pl-10 p-2 border rounded-lg w-64 outline-none focus:ring-2 focus:ring-indigo-500"
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+          <div className="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              <Search size={16} className="text-slate-400" />
+              <input
+                placeholder="Search by name or email..."
+                className="outline-none text-sm w-56 text-slate-600 bg-transparent"
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
+            <div className="flex items-center gap-2">
+              <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+                Department: All <ChevronDown size={14} />
+              </button>
+              <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+                CGPA {">"} 8.0 <ChevronDown size={14} />
+              </button>
+              <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+                Status: Active <ChevronDown size={14} />
+              </button>
+              <button onClick={fetchStudents} className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
+                <RefreshCw size={16} />
+              </button>
+            </div>
+          </div>
 
+          <div className="overflow-x-auto">
             <table className="w-full text-left">
-                <thead className="bg-gray-50 text-gray-600 font-semibold text-sm">
-                    <tr>
-                        <th className="p-4">Name</th>
-                        <th className="p-4">Email</th>
-                        <th className="p-4">Branch</th>
-                        <th className="p-4">CGPA</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm">
-                    {loading ? (
-                        <tr><td colSpan={6} className="p-8 text-center text-gray-500">Loading directory...</td></tr>
-                    ) : filteredStudents.length === 0 ? (
-                        <tr><td colSpan={6} className="p-8 text-center text-gray-500">No students found.</td></tr>
-                    ) : (
-                        filteredStudents.map((student) => (
-                            <tr key={student._id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-4 font-medium text-gray-800">{student.name}</td>
-                                <td className="p-4 text-gray-500">{student.email}</td>
-                                <td className="p-4"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">{student.branch}</span></td>
-                                <td className="p-4 font-bold">{student.cgpa}</td>
-                                <td className="p-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${student.isFirstLogin ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                                        {student.isFirstLogin ? 'Pending Activation' : 'Active'}
-                                    </span>
-                                </td>
-                                <td className="p-4">
-                                    <button onClick={() => handleDelete(student._id)} className="text-gray-400 hover:text-red-600 transition-colors">
-                                        <Trash2 size={18}/>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))
-                    )}
-                </tbody>
+              <thead className="text-xs uppercase text-slate-400 border-b border-slate-200">
+                <tr>
+                  <th className="p-4">Student Profile</th>
+                  <th className="p-4">Academic Info</th>
+                  <th className="p-4">Skills</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {loading ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-slate-500">Loading directory...</td></tr>
+                ) : filteredStudents.length === 0 ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-slate-500">No students found.</td></tr>
+                ) : (
+                  filteredStudents.map((student) => {
+                    const skills = (student.skills || "")
+                      .split(",")
+                      .map((skill: string) => skill.trim())
+                      .filter(Boolean)
+                      .slice(0, 3);
+                    return (
+                      <tr key={student._id} className="hover:bg-slate-50">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-semibold">
+                              {(student.name || "S").split(" ").map((part: string) => part[0]).slice(0, 2).join("").toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-slate-800">{student.name}</div>
+                              <div className="text-xs text-slate-500">{student.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-slate-700">{student.branch || "N/A"}</div>
+                          <div className="text-xs text-slate-500">CGPA: {student.cgpa || "N/A"}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-2">
+                            {skills.length === 0 && <span className="text-xs text-slate-400">No skills</span>}
+                            {skills.map((skill: string) => (
+                              <span key={skill} className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            student.isFirstLogin ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"
+                          }`}>
+                            {student.isFirstLogin ? "Pending Activation" : "Active"}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button onClick={() => handleDelete(student._id)} className="text-slate-400 hover:text-red-600 transition-colors">
+                            <Trash2 size={16}/>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
             </table>
+          </div>
         </div>
       </div>
     </CollegeLayout>
