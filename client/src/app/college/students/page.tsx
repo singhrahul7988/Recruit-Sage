@@ -18,19 +18,30 @@ export default function StudentDirectory() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   // 1. FETCH STUDENTS
   const fetchStudents = async () => {
     try {
         const storedUser = localStorage.getItem("user");
-        if(!storedUser) return;
+        if(!storedUser) {
+            setErrorMsg("Session missing. Please log in again.");
+            setLoading(false);
+            return;
+        }
         const user = JSON.parse(storedUser);
         const collegeId = user.role === "college" ? user._id : user.collegeId;
+        if(!collegeId) {
+            setErrorMsg("College link not found for this account.");
+            setLoading(false);
+            return;
+        }
 
         const { data } = await api.get(`/api/auth/students/${collegeId}`);
         setStudents(data);
         setLoading(false);
     } catch (error) {
+        setErrorMsg("Failed to load students. Please refresh.");
         console.error("Failed to load students");
         setLoading(false);
     }
@@ -56,16 +67,23 @@ export default function StudentDirectory() {
     e.preventDefault();
     try {
         const storedUser = localStorage.getItem("user");
-        if(!storedUser) return;
+        if(!storedUser) {
+            alert("Session missing. Please log in again.");
+            return;
+        }
         const user = JSON.parse(storedUser);
         const collegeId = user.role === "college" ? user._id : user.collegeId;
+        if(!collegeId) {
+            alert("College link not found for this account.");
+            return;
+        }
 
         await api.post("/api/auth/add-student", { ...formData, collegeId });
         alert(`Student added!`);
         setFormData({ name: "", email: "", branch: "", cgpa: "", phone: "" });
         fetchStudents();
     } catch (error: any) {
-        alert("Error: " + error.response?.data?.message);
+        alert("Error: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -88,9 +106,18 @@ export default function StudentDirectory() {
 
         try {
             const storedUser = localStorage.getItem("user");
-            if(!storedUser) return;
+            if(!storedUser) {
+                alert("Session missing. Please log in again.");
+                setIsUploading(false);
+                return;
+            }
             const user = JSON.parse(storedUser);
             const collegeId = user.role === "college" ? user._id : user.collegeId;
+            if(!collegeId) {
+                alert("College link not found for this account.");
+                setIsUploading(false);
+                return;
+            }
 
             const res = await api.post("/api/auth/add-students-bulk", { students: jsonData, collegeId });
             alert(res.data.message);
@@ -122,6 +149,11 @@ export default function StudentDirectory() {
       
       <div className="p-8"> 
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Student Directory</h1>
+        {errorMsg && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMsg}
+          </div>
+        )}
 
         {/* ONBOARDING SECTION */}
         <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm mb-10">

@@ -90,7 +90,10 @@ export default function CompanyLayout({ children }: LayoutProps) {
       </aside>
 
       {/* --- CONTENT WRAPPER --- */}
-      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? "ml-20" : "ml-64"}`}>
+      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? "ml-20" : "ml-64"} relative`}>
+        <div className="absolute top-4 right-6 text-xs font-bold text-blue-200 bg-slate-900/90 border border-slate-700 px-3 py-1 rounded-full">
+          Company Dashboard
+        </div>
         {children}
       </div>
     </div>

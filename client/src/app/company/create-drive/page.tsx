@@ -31,16 +31,27 @@ export default function CreateDrive() {
     const fetchPartners = async () => {
         const storedUser = localStorage.getItem("user");
         if(!storedUser) return;
-        const userId = JSON.parse(storedUser)._id;
+        const userId = String(JSON.parse(storedUser)._id);
 
         try {
             const { data } = await api.get(`/api/network/requests/${userId}`);
             // Filter only ACTIVE partnerships and get the OTHER party (College)
-            const active = data
-                .filter((p: any) => p.status === 'Active')
-                .map((p: any) => p.recipientId._id === userId ? p.requesterId : p.recipientId);
+            const normalizeId = (value: any) => String(value?._id ?? value ?? "");
+            const active = data.filter((p: any) => p.status === "Active");
+            const colleges = active
+                .map((p: any) => {
+                    const requesterId = normalizeId(p.requesterId);
+                    const recipientId = normalizeId(p.recipientId);
+                    const other = requesterId === userId ? p.recipientId : p.requesterId;
+                    return other;
+                })
+                .filter((p: any) => p && p.role === "college");
+
+            const uniqueColleges = Array.from(
+                new Map(colleges.map((c: any) => [normalizeId(c), c])).values()
+            );
             
-            setPartners(active);
+            setPartners(uniqueColleges);
         } catch(e) { console.error("Error loading partners"); }
     };
     fetchPartners();

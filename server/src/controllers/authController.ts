@@ -63,12 +63,27 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 // @desc    Login user
 // @route   POST /api/auth/login
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   try {
+    if (!role || !["student", "company", "college"].includes(role)) {
+      res.status(401).json({ message: "Incorrect credentials" });
+      return;
+    }
+
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+      const roleAllowed =
+        role === "college"
+          ? user.role === "college" || user.role === "college_member"
+          : user.role === role;
+
+      if (!roleAllowed) {
+        res.status(401).json({ message: "Incorrect credentials" });
+        return;
+      }
+
       const targetCollegeId = user.role === 'college' ? user._id : user.collegeId;
 
       res.json({
@@ -85,7 +100,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         token: generateToken((user._id as unknown) as string),
       });
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      res.status(401).json({ message: "Incorrect credentials" });
     }
   } catch (error: any) {
     res.status(500).json({ message: error.message });

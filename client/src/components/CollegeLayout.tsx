@@ -100,8 +100,11 @@ export default function CollegeLayout({ children }: LayoutProps) {
       <div 
         className={`flex-1 transition-all duration-300 ${
           isCollapsed ? "ml-20" : "ml-64"
-        }`}
+        } relative`}
       >
+        <div className="absolute top-4 right-6 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">
+          College Dashboard
+        </div>
         {/* Pass the children (the page content) here */}
         {children}
       </div>
