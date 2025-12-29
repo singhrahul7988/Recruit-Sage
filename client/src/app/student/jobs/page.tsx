@@ -9,7 +9,7 @@ export default function JobFeed() {
   const router = useRouter();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [debugMsg, setDebugMsg] = useState(""); // To show errors on screen
+  const [errorMsg, setErrorMsg] = useState("");
   const [studentProfile, setStudentProfile] = useState({ cgpa: 0, branch: "" });
 
   // 1. FETCH REAL JOBS
@@ -17,20 +17,15 @@ export default function JobFeed() {
     const fetchJobs = async () => {
         const storedUser = localStorage.getItem("user");
         if(!storedUser) {
-            setDebugMsg("No user found in storage. Please logout and login.");
+            setErrorMsg("Session missing. Please log in again.");
             setLoading(false);
             return;
         }
         
         const user = JSON.parse(storedUser);
         
-        // DEBUG LOGGING
-        console.log("--- DEBUGGING JOB FEED ---");
-        console.log("Logged in User:", user);
-        console.log("Student College ID:", user.collegeId);
-
         if (!user.collegeId) {
-            setDebugMsg("Error: Your account is not linked to a College. Please ask Admin to re-add you.");
+            setErrorMsg("Your account is not linked to a college. Please contact the placement team.");
             setLoading(false);
             return;
         }
@@ -44,15 +39,10 @@ export default function JobFeed() {
         try {
             // Fetch jobs specifically for this student's college
             const url = `/api/jobs/feed/${user.collegeId}`;
-            console.log("Fetching from URL:", url);
-            
             const { data } = await api.get(url);
-            console.log("Jobs Received:", data);
-            
             setJobs(data);
         } catch (error: any) {
-            console.error("Failed to load jobs", error);
-            setDebugMsg("API Error: " + (error.response?.data?.message || error.message));
+            setErrorMsg(error.response?.data?.message || "Failed to load jobs.");
         } finally {
             setLoading(false);
         }
@@ -71,10 +61,10 @@ export default function JobFeed() {
         </header>
 
         {/* DEBUG MESSAGE BOX */}
-        {debugMsg && (
+        {errorMsg && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
                 <AlertTriangle size={20}/> 
-                <span>{debugMsg}</span>
+                <span>{errorMsg}</span>
             </div>
         )}
 
@@ -83,7 +73,6 @@ export default function JobFeed() {
         ) : jobs.length === 0 ? (
             <div className="text-center py-10 bg-white rounded-xl border border-dashed border-gray-300">
                 <p className="text-gray-500 mb-2">No jobs posted for your college yet.</p>
-                <p className="text-xs text-gray-400">Debug Hint: Check if the Company posted to the correct College ID.</p>
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

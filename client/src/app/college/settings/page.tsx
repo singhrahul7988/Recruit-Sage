@@ -8,14 +8,14 @@ import {
   AlertCircle,
   Users,
   UserPlus,
-  Bell,
-  Moon,
   ChevronDown
 } from "lucide-react";
 import api from "@/lib/api";
+import TopBarActions from "../../../components/TopBarActions";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
+  const [teamFilter, setTeamFilter] = useState("All");
   
   // Profile State
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "" });
@@ -90,6 +90,12 @@ export default function Settings() {
     }
   };
 
+  const filteredTeam = team.filter((member) => {
+    if (teamFilter === "All") return true;
+    if (teamFilter === "Active") return !member.isFirstLogin;
+    return member.isFirstLogin;
+  });
+
   return (
     <CollegeLayout>
       <div className="px-8 py-6">
@@ -98,14 +104,7 @@ export default function Settings() {
             <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
             <p className="text-sm text-slate-500">Manage account preferences and team access.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Moon size={16} />
-            </button>
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Bell size={16} />
-            </button>
-          </div>
+          <TopBarActions settingsPath="/college/settings" />
         </header>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -186,13 +185,22 @@ export default function Settings() {
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-slate-800">Current Team</h3>
-                <button className="text-xs text-slate-500 border border-slate-200 rounded-lg px-2 py-1">
-                  Filter <ChevronDown size={12} className="inline-block ml-1"/>
-                </button>
+                <div className="relative">
+                  <select
+                    value={teamFilter}
+                    onChange={(event) => setTeamFilter(event.target.value)}
+                    className="appearance-none text-xs text-slate-500 border border-slate-200 rounded-lg px-2 py-1 pr-6 bg-white"
+                  >
+                    <option value="All">All</option>
+                    <option value="Active">Active</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                  <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1.5 text-slate-400"/>
+                </div>
               </div>
               <div className="space-y-3">
-                {team.length === 0 && <p className="text-slate-400 text-sm italic">No additional staff members added yet.</p>}
-                {team.map((member) => (
+                {filteredTeam.length === 0 && <p className="text-slate-400 text-sm italic">No staff members found.</p>}
+                {filteredTeam.map((member) => (
                   <div key={member._id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">

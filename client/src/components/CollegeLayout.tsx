@@ -14,6 +14,7 @@ import {
   School
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import api from "@/lib/api";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,6 +25,7 @@ export default function CollegeLayout({ children }: LayoutProps) {
   const pathname = usePathname();
   const [userName, setUserName] = useState("Placement Lead");
   const [userEmail, setUserEmail] = useState("placement@college.edu");
+  const [pendingCompanyRequests, setPendingCompanyRequests] = useState(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -37,6 +39,44 @@ export default function CollegeLayout({ children }: LayoutProps) {
         setUserEmail("placement@college.edu");
       }
     }
+  }, []);
+
+  const loadPendingCompanyRequests = async () => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      setPendingCompanyRequests(0);
+      return;
+    }
+    try {
+      const user = JSON.parse(storedUser);
+      const collegeId = user.role === "college" ? user._id : user.collegeId;
+      if (!collegeId) {
+        setPendingCompanyRequests(0);
+        return;
+      }
+      const { data } = await api.get(`/api/network/requests/${collegeId}`);
+      const pendingCount = (data || []).filter((req: any) =>
+        req.status === "Pending" && req.requesterId?.role === "company"
+      ).length;
+      setPendingCompanyRequests(pendingCount);
+    } catch {
+      setPendingCompanyRequests(0);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingCompanyRequests();
+  }, [pathname]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<number>).detail;
+      if (typeof detail === "number") {
+        setPendingCompanyRequests(detail);
+      }
+    };
+    window.addEventListener("company-requests-updated", handler as EventListener);
+    return () => window.removeEventListener("company-requests-updated", handler as EventListener);
   }, []);
 
   const handleLogout = () => {
@@ -53,13 +93,22 @@ export default function CollegeLayout({ children }: LayoutProps) {
   ];
 
   const analyticsItems = [
-    { name: "Reports", icon: BarChart3 },
-    { name: "Statistics", icon: PieChart },
+    { name: "Reports", icon: BarChart3, path: "/college/reports" },
+    { name: "Statistics", icon: PieChart, path: "/college/statistics" },
+  ];
+
+  const networkItems = [
+    {
+      name: "Company Requests",
+      icon: Building2,
+      path: "/college/company-requests",
+      badge: pendingCompanyRequests > 0 ? pendingCompanyRequests : undefined,
+    },
   ];
 
   const communicationItems = [
-    { name: "Notices", icon: Bell },
-    { name: "Team Talk", icon: MessageSquare },
+    { name: "Notices", icon: Bell, path: "/college/notices", badge: 3 },
+    { name: "Team Talk", icon: MessageSquare, path: "/college/team-talk" },
   ];
 
   return (
@@ -75,7 +124,7 @@ export default function CollegeLayout({ children }: LayoutProps) {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-5 space-y-6">
+        <nav className="flex-1 px-4 py-5 space-y-6 overflow-y-auto">
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Main</div>
             <div className="space-y-1">
@@ -102,30 +151,85 @@ export default function CollegeLayout({ children }: LayoutProps) {
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Analytics</div>
             <div className="space-y-1">
-              {analyticsItems.map((item) => (
-                <div
-                  key={item.name}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400"
-                >
-                  <item.icon size={18} />
-                  <span>{item.name}</span>
-                </div>
-              ))}
+              {analyticsItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => item.path && router.push(item.path)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      item.path
+                        ? isActive
+                          ? "bg-blue-50 text-blue-700 font-semibold"
+                          : "text-slate-600 hover:bg-slate-100"
+                        : "text-slate-400 cursor-default"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Network</div>
+            <div className="space-y-1">
+              {networkItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <item.icon size={18} />
+                      <span>{item.name}</span>
+                    </span>
+                    {item.badge && (
+                      <span className="h-5 min-w-[20px] rounded-full bg-blue-600 text-white text-xs flex items-center justify-center px-1">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Communication</div>
             <div className="space-y-1">
-              {communicationItems.map((item) => (
-                <div
-                  key={item.name}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400"
-                >
-                  <item.icon size={18} />
-                  <span>{item.name}</span>
-                </div>
-              ))}
+              {communicationItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <item.icon size={18} />
+                      <span>{item.name}</span>
+                    </span>
+                    {item.badge && (
+                      <span className="h-5 min-w-[20px] rounded-full bg-red-500 text-white text-xs flex items-center justify-center px-1">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </nav>
@@ -153,10 +257,7 @@ export default function CollegeLayout({ children }: LayoutProps) {
         </div>
       </aside>
 
-      <div className="flex-1 ml-72 relative">
-        <div className="absolute top-4 right-6 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-          College Dashboard
-        </div>
+      <div className="flex-1 ml-72">
         {children}
       </div>
     </div>

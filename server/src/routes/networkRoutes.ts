@@ -3,7 +3,8 @@ import {
     sendConnectionRequest, 
     getMyNetwork, 
     respondToRequest,
-    getAllColleges 
+    getAllColleges,
+    getAllCompanies
 } from '../controllers/networkController';
 import authMiddleware from '../middleware/authMiddleware';
 
@@ -13,5 +14,6 @@ router.post('/connect', authMiddleware, sendConnectionRequest);
 router.get('/requests/:userId', authMiddleware, getMyNetwork);
 router.put('/respond', authMiddleware, respondToRequest);
 router.get('/search-colleges', authMiddleware, getAllColleges);
+router.get('/search-companies', authMiddleware, getAllCompanies);
 
 export default router;

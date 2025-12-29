@@ -102,11 +102,8 @@ export default function StudentLayout({ children }: LayoutProps) {
       <div 
         className={`flex-1 transition-all duration-300 ${
           isCollapsed ? "ml-20" : "ml-64"
-        } relative`}
+        }`}
       >
-        <div className="absolute top-4 right-6 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-          Student Dashboard
-        </div>
         {children}
       </div>
 

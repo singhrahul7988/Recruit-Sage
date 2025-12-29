@@ -1,4 +1,4 @@
 "use client";
-import CampusDrivesPage from "../campus-drives/page";
+import CampusNetworkPage from "../campus-network/page";
 
-export default CampusDrivesPage;
+export default CampusNetworkPage;

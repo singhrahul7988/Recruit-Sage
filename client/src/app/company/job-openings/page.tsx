@@ -3,30 +3,60 @@ import React, { useEffect, useState } from "react";
 import CompanyLayout from "../../../components/CompanyLayout";
 import {
   Search,
-  Bell,
-  Moon,
   ChevronDown,
   Filter,
   ArrowUpRight
 } from "lucide-react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import TopBarActions from "../../../components/TopBarActions";
+
+type Job = {
+  _id: string;
+  title: string;
+  location?: string;
+  status?: string;
+  deadline?: string;
+  createdAt?: string;
+  criteria?: {
+    branches?: string[];
+  };
+};
 
 export default function JobOpenings() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         const storedUser = localStorage.getItem("user");
-        if (!storedUser) return;
-        const user = JSON.parse(storedUser);
+        if (!storedUser) {
+          setErrorMsg("Session missing. Please log in again.");
+          setLoading(false);
+          return;
+        }
+        let user;
+        try {
+          user = JSON.parse(storedUser);
+        } catch {
+          setErrorMsg("Session data is corrupted. Please log in again.");
+          setLoading(false);
+          return;
+        }
         const { data } = await api.get(`/api/jobs/company/${user._id}`);
         setJobs(data);
       } catch (error) {
         console.error("Failed to load job openings");
+        setErrorMsg("Failed to load job openings. Please refresh.");
       } finally {
         setLoading(false);
       }
@@ -47,6 +77,43 @@ export default function JobOpenings() {
     { label: "Application Rate", value: "14%", change: "+2%" },
   ];
 
+  const departments = Array.from(
+    new Set(
+      jobs
+        .flatMap((job) => job?.criteria?.branches || [])
+        .map((branch: string) => branch || "General")
+    )
+  );
+
+  const filteredJobs = jobs.filter((job) => {
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      !term ||
+      job?.title?.toLowerCase().includes(term) ||
+      job?.location?.toLowerCase().includes(term);
+
+    const departmentValue = job?.criteria?.branches?.[0] || "General";
+    const matchesDepartment = departmentFilter === "All" || departmentValue === departmentFilter;
+    const matchesStatus = statusFilter === "All" || job?.status === statusFilter;
+
+    return matchesSearch && matchesDepartment && matchesStatus;
+  });
+
+  const handleCopyJobId = async (jobId: string) => {
+    try {
+      await navigator.clipboard.writeText(jobId);
+      setActionMessage("Job ID copied to clipboard.");
+    } catch {
+      setActionMessage("Unable to copy job ID.");
+    }
+    setOpenMenuId(null);
+  };
+
+  const handleViewDetails = (job: Job) => {
+    setSelectedJob(job);
+    setOpenMenuId(null);
+  };
+
   return (
     <CompanyLayout>
       <div className="px-8 py-6">
@@ -58,14 +125,14 @@ export default function JobOpenings() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
               <Search size={16} className="text-slate-400" />
-              <input placeholder="Search positions..." className="outline-none text-sm w-48 text-slate-600" />
+              <input
+                placeholder="Search positions..."
+                className="outline-none text-sm w-48 text-slate-600"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Bell size={16} />
-            </button>
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Moon size={16} />
-            </button>
+            <TopBarActions settingsPath="/company/settings" />
             <button
               onClick={() => router.push("/company/create-drive")}
               className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold"
@@ -74,6 +141,12 @@ export default function JobOpenings() {
             </button>
           </div>
         </header>
+
+        {actionMessage && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            {actionMessage}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -98,6 +171,12 @@ export default function JobOpenings() {
           </div>
         </div>
 
+        {errorMsg && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMsg}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 xl:grid-cols-[240px_1fr] gap-6">
           <aside className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm h-fit">
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Quick Stats</div>
@@ -119,13 +198,41 @@ export default function JobOpenings() {
               <div className="text-sm font-semibold text-slate-800">All Positions</div>
               <span className="text-xs text-slate-400">({jobs.length} total)</span>
               <div className="ml-auto flex items-center gap-2">
-                <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
-                  All Departments <ChevronDown size={14} />
-                </button>
-                <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
-                  All Statuses <ChevronDown size={14} />
-                </button>
-                <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
+                <div className="relative">
+                  <select
+                    className="appearance-none flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 pr-7 bg-white"
+                    value={departmentFilter}
+                    onChange={(e) => setDepartmentFilter(e.target.value)}
+                  >
+                    <option value="All">All Departments</option>
+                    {departments.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-2 top-2.5 text-slate-400" />
+                </div>
+                <div className="relative">
+                  <select
+                    className="appearance-none flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 pr-7 bg-white"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Open">Active</option>
+                    <option value="Interviewing">Interviewing</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-2 top-2.5 text-slate-400" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setDepartmentFilter("All");
+                    setStatusFilter("All");
+                  }}
+                  className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500"
+                >
                   <Filter size={16} />
                 </button>
               </div>
@@ -146,10 +253,10 @@ export default function JobOpenings() {
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {loading ? (
                     <tr><td colSpan={6} className="p-8 text-center text-slate-500">Loading positions...</td></tr>
-                  ) : jobs.length === 0 ? (
+                  ) : filteredJobs.length === 0 ? (
                     <tr><td colSpan={6} className="p-8 text-center text-slate-500">No jobs posted yet.</td></tr>
                   ) : (
-                    jobs.map((job, index) => (
+                    filteredJobs.map((job, index) => (
                       <tr key={job._id} className="hover:bg-slate-50">
                         <td className="p-4">
                           <div className="font-semibold text-slate-800">{job.title}</div>
@@ -173,7 +280,43 @@ export default function JobOpenings() {
                             {job.status}
                           </span>
                         </td>
-                        <td className="p-4 text-right text-slate-400">...</td>
+                        <td className="p-4 text-right">
+                          <div className="relative inline-flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setOpenMenuId(openMenuId === job._id ? null : job._id)}
+                              className="text-slate-400 hover:text-slate-600"
+                              aria-label="Open job actions"
+                            >
+                              ...
+                            </button>
+                            {openMenuId === job._id && (
+                              <div className="absolute right-0 top-7 w-40 rounded-lg border border-slate-200 bg-white shadow-lg z-20 text-left">
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewDetails(job)}
+                                  className="w-full px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                                >
+                                  View details
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyJobId(job._id)}
+                                  className="w-full px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                                >
+                                  Copy job ID
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push("/company/candidates")}
+                                  className="w-full px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                                >
+                                  View candidates
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -182,6 +325,57 @@ export default function JobOpenings() {
             </div>
           </div>
         </div>
+
+        {selectedJob && (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center px-4">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-lg max-w-lg w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-sm text-slate-500">Job details</div>
+                  <div className="text-lg font-semibold text-slate-800">{selectedJob.title}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedJob(null)}
+                  className="text-xs text-slate-500"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-3 text-sm text-slate-600">
+                <div>
+                  <div className="text-xs text-slate-400">Location</div>
+                  <div className="font-semibold text-slate-700">{selectedJob.location || "Remote"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Status</div>
+                  <div className="font-semibold text-slate-700">{selectedJob.status || "Open"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Departments</div>
+                  <div className="font-semibold text-slate-700">
+                    {selectedJob.criteria?.branches?.join(", ") || "General"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Deadline</div>
+                  <div className="font-semibold text-slate-700">
+                    {selectedJob.deadline ? new Date(selectedJob.deadline).toLocaleDateString() : "N/A"}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedJob(null)}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </CompanyLayout>
   );

@@ -10,6 +10,22 @@ export default function ReportsPage() {
     { title: "Campus Drive Outcomes", period: "Q4 2023", status: "Draft" },
   ];
 
+  const handleExport = () => {
+    const header = ["Title", "Period", "Status"];
+    const rows = reports.map((report) => [report.title, report.period, report.status]);
+    const csvContent = [header, ...rows]
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "company_reports.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <CompanyLayout>
       <div className="px-8 py-6">
@@ -18,7 +34,10 @@ export default function ReportsPage() {
             <h1 className="text-2xl font-semibold text-slate-900">Reports</h1>
             <p className="text-sm text-slate-500">Download and review hiring analytics.</p>
           </div>
-          <button className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold"
+          >
             Export Report <Download size={14} />
           </button>
         </header>

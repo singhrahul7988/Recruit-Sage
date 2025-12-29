@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import CompanyLayout from "../../../components/CompanyLayout";
 import {
   Search,
-  Bell,
   Calendar,
   GraduationCap,
   Users,
@@ -12,18 +11,46 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import TopBarActions from "../../../components/TopBarActions";
 
 export default function CampusDrivesPage() {
   const router = useRouter();
   const [colleges, setColleges] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAllPending, setShowAllPending] = useState(false);
+  const [selectedCollege, setSelectedCollege] = useState<any | null>(null);
+
+  const getStoredUser = () => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      return { error: "Session missing. Please log in again." };
+    }
+    try {
+      const user = JSON.parse(storedUser);
+      return { user };
+    } catch {
+      return { error: "Session data is corrupted. Please log in again." };
+    }
+  };
 
   const loadData = async () => {
     try {
-      const storedUser = localStorage.getItem("user");
-      if(!storedUser) return;
-      const userId = JSON.parse(storedUser)._id;
+      const { user, error } = getStoredUser();
+      if (!user) {
+        setErrorMsg(error || "Session missing. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      if (!user._id) {
+        setErrorMsg("User session is incomplete. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      const userId = user._id;
 
       const [collegesRes, requestsRes] = await Promise.all([
         api.get("/api/network/search-colleges"),
@@ -33,6 +60,7 @@ export default function CampusDrivesPage() {
       setRequests(requestsRes.data || []);
     } catch (error) {
       console.error("Failed to load campus drives");
+      setErrorMsg("Failed to load campus drives. Please refresh.");
     } finally {
       setLoading(false);
     }
@@ -43,20 +71,32 @@ export default function CampusDrivesPage() {
   }, []);
 
   const getStatus = (collegeId: string) => {
-    const req = requests.find((r) => r.recipientId._id === collegeId || r.requesterId._id === collegeId);
+    const req = requests.find((r) => r?.recipientId?._id === collegeId || r?.requesterId?._id === collegeId);
     return req ? req.status : null;
   };
 
   const handleConnect = async (collegeId: string) => {
     try {
-      const storedUser = localStorage.getItem("user");
-      if(!storedUser) return;
-      const requesterId = JSON.parse(storedUser)._id;
+      const { user, error } = getStoredUser();
+      if (!user) {
+        setActionMessage(error || "Session missing. Please log in again.");
+        return;
+      }
+      if (!user._id) {
+        setActionMessage("User session is incomplete. Please log in again.");
+        return;
+      }
+      const requesterId = user._id;
       await api.post("/api/network/connect", { requesterId, recipientId: collegeId });
+      setActionMessage("Connection request sent.");
       loadData();
     } catch (error: any) {
-      alert(error.response?.data?.message || "Failed to connect");
+      setActionMessage(error.response?.data?.message || "Failed to connect");
     }
+  };
+
+  const handleOpenDetails = (college: any) => {
+    setSelectedCollege(college);
   };
 
   const activePartners = requests.filter((r) => r.status === "Active");
@@ -66,6 +106,15 @@ export default function CampusDrivesPage() {
   const participatingColleges = activePartners.length || 0;
   const registeredStudents = participatingColleges * 120 + 3450;
   const offersRolledOut = participatingColleges * 5 + 142;
+
+  const filteredColleges = colleges.filter((college) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      college?.name?.toLowerCase().includes(term) ||
+      college?.email?.toLowerCase().includes(term)
+    );
+  });
 
   return (
     <CompanyLayout>
@@ -79,11 +128,14 @@ export default function CampusDrivesPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
               <Search size={16} className="text-slate-400" />
-              <input placeholder="Search colleges, drives..." className="outline-none text-sm w-52 text-slate-600" />
+              <input
+                placeholder="Search colleges, drives..."
+                className="outline-none text-sm w-52 text-slate-600"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Bell size={16} />
-            </button>
+            <TopBarActions settingsPath="/company/settings" showSettings={false} />
             <button
               onClick={() => router.push("/company/create-drive")}
               className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold"
@@ -92,6 +144,12 @@ export default function CampusDrivesPage() {
             </button>
           </div>
         </header>
+
+        {actionMessage && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            {actionMessage}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -128,6 +186,12 @@ export default function CampusDrivesPage() {
           </div>
         </div>
 
+        {errorMsg && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMsg}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -135,7 +199,13 @@ export default function CampusDrivesPage() {
                 <div className="text-sm font-semibold text-slate-800">Upcoming Campus Drives</div>
                 <div className="text-xs text-slate-500">Manage scheduled events for this quarter</div>
               </div>
-              <button className="text-xs text-blue-600 font-semibold">View All</button>
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="text-xs text-blue-600 font-semibold"
+              >
+                View All
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -151,18 +221,20 @@ export default function CampusDrivesPage() {
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {loading ? (
                     <tr><td colSpan={5} className="p-8 text-center text-slate-500">Loading drives...</td></tr>
-                  ) : colleges.length === 0 ? (
+                  ) : filteredColleges.length === 0 ? (
                     <tr><td colSpan={5} className="p-8 text-center text-slate-500">No colleges found.</td></tr>
                   ) : (
-                    colleges.map((college: any, index: number) => {
+                    filteredColleges.map((college: any, index: number) => {
                       const status = getStatus(college._id);
                       const label =
                         status === "Active" ? "Confirmed" :
                         status === "Pending" ? "Pending Approval" :
+                        status === "Rejected" ? "Rejected" :
                         "Draft";
                       const color =
                         status === "Active" ? "bg-emerald-50 text-emerald-600" :
                         status === "Pending" ? "bg-amber-50 text-amber-600" :
+                        status === "Rejected" ? "bg-red-50 text-red-600" :
                         "bg-slate-100 text-slate-600";
                       return (
                         <tr key={college._id} className="hover:bg-slate-50">
@@ -182,7 +254,11 @@ export default function CampusDrivesPage() {
                           <td className="p-4 text-slate-600">{status === "Active" ? 200 + index * 15 : "-"}</td>
                           <td className="p-4 text-right">
                             {status ? (
-                              <button className="text-slate-400 hover:text-slate-600">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDetails(college)}
+                                className="text-slate-400 hover:text-slate-600"
+                              >
                                 <ChevronRight size={16} />
                               </button>
                             ) : (
@@ -207,7 +283,7 @@ export default function CampusDrivesPage() {
                 <div className="text-xs text-slate-500">No pending actions.</div>
               ) : (
                 <div className="space-y-3">
-                  {pendingRequests.slice(0, 2).map((req: any) => {
+                  {pendingRequests.slice(0, showAllPending ? pendingRequests.length : 2).map((req: any) => {
                     const college = req.requesterId.role === "college" ? req.requesterId : req.recipientId;
                     return (
                       <div key={req._id} className="border border-slate-100 rounded-xl p-3">
@@ -218,8 +294,12 @@ export default function CampusDrivesPage() {
                   })}
                 </div>
               )}
-              <button className="mt-4 w-full border border-slate-200 rounded-lg py-2 text-sm text-slate-600 font-semibold">
-                View All Tasks
+              <button
+                type="button"
+                onClick={() => setShowAllPending((prev) => !prev)}
+                className="mt-4 w-full border border-slate-200 rounded-lg py-2 text-sm text-slate-600 font-semibold"
+              >
+                {showAllPending ? "Collapse Tasks" : "View All Tasks"}
               </button>
             </div>
 
@@ -230,6 +310,62 @@ export default function CampusDrivesPage() {
             </div>
           </div>
         </div>
+
+        {selectedCollege && (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center px-4">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-lg max-w-lg w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-sm text-slate-500">Campus details</div>
+                  <div className="text-lg font-semibold text-slate-800">{selectedCollege.name}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCollege(null)}
+                  className="text-xs text-slate-500"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-3 text-sm text-slate-600">
+                <div>
+                  <div className="text-xs text-slate-400">Email</div>
+                  <div className="font-semibold text-slate-700">{selectedCollege.email}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Status</div>
+                  <div className="font-semibold text-slate-700">{getStatus(selectedCollege._id) || "Draft"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Location</div>
+                  <div className="font-semibold text-slate-700">{selectedCollege.location || "Not specified"}</div>
+                </div>
+              </div>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                {getStatus(selectedCollege._id) ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCollege(null)}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+                  >
+                    Done
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleConnect(selectedCollege._id);
+                      setSelectedCollege(null);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+                  >
+                    Send Invite
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </CompanyLayout>
   );

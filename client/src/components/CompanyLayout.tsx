@@ -7,6 +7,7 @@ import {
   CalendarClock,
   GraduationCap,
   FileText,
+  Building2,
   Settings,
   LogOut
 } from "lucide-react";
@@ -44,6 +45,7 @@ export default function CompanyLayout({ children }: LayoutProps) {
 
   const menuItems = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/company/dashboard" },
+    { name: "Campus Network", icon: Building2, path: "/company/campus-network" },
     { name: "Job Openings", icon: Briefcase, path: "/company/job-openings" },
     { name: "Candidates", icon: Users, path: "/company/candidates" },
     { name: "Interviews", icon: CalendarClock, path: "/company/interviews" },
@@ -65,12 +67,12 @@ export default function CompanyLayout({ children }: LayoutProps) {
     <div className="min-h-screen bg-slate-50 flex">
       <aside className="w-72 bg-white border-r border-slate-200 fixed left-0 top-0 h-screen z-50 flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-semibold">
-            R
+          <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+            <Building2 size={20} />
           </div>
           <div>
-            <div className="text-sm font-semibold text-slate-800">Recruit Sage</div>
-            <div className="text-xs text-slate-400">Hiring Hub</div>
+            <div className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Recruit Sage</div>
+            <div className="text-xs text-slate-500">Company</div>
           </div>
         </div>
 
@@ -129,7 +131,11 @@ export default function CompanyLayout({ children }: LayoutProps) {
               <div className="text-sm font-semibold text-slate-700 truncate">{userName}</div>
               <div className="text-xs text-slate-400 truncate">{userCompany}</div>
             </div>
-            <button type="button" className="text-slate-400 hover:text-slate-600">
+            <button
+              type="button"
+              onClick={() => router.push("/company/settings")}
+              className="text-slate-400 hover:text-slate-600"
+            >
               <Settings size={16} />
             </button>
           </div>
@@ -143,10 +149,7 @@ export default function CompanyLayout({ children }: LayoutProps) {
         </div>
       </aside>
 
-      <div className="flex-1 ml-72 relative">
-        <div className="absolute top-4 right-6 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-          Company Dashboard
-        </div>
+      <div className="flex-1 ml-72">
         {children}
       </div>
     </div>

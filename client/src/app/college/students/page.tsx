@@ -8,13 +8,12 @@ import {
   Download,
   Trash2,
   Search,
-  Bell,
-  Moon,
   ChevronDown,
   RefreshCw
 } from "lucide-react";
 import api from "@/lib/api";
 import * as XLSX from "xlsx";
+import TopBarActions from "../../../components/TopBarActions";
 
 export default function StudentDirectory() {
   const [activeMethod, setActiveMethod] = useState("manual");
@@ -30,6 +29,9 @@ export default function StudentDirectory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [cgpaFilter, setCgpaFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   // 1. FETCH STUDENTS
   const fetchStudents = async () => {
@@ -147,10 +149,41 @@ export default function StudentDirectory() {
     XLSX.writeFile(wb, "student_template.xlsx");
   };
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const departments = Array.from(
+    new Set(
+      students
+        .map((student) => student.branch)
+        .filter((branch) => branch && String(branch).trim().length > 0)
+    )
   );
+
+  const filteredStudents = students.filter((student) => {
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      !term ||
+      student.name.toLowerCase().includes(term) ||
+      student.email.toLowerCase().includes(term);
+
+    const matchesDepartment =
+      departmentFilter === "All" ||
+      (student.branch || "").toLowerCase() === departmentFilter.toLowerCase();
+
+    const cgpaValue = parseFloat(student.cgpa || "0");
+    const minCgpa =
+      cgpaFilter === "gte-9" ? 9 :
+      cgpaFilter === "gte-8" ? 8 :
+      cgpaFilter === "gte-7" ? 7 :
+      cgpaFilter === "gte-6" ? 6 :
+      null;
+    const matchesCgpa = minCgpa === null ? true : cgpaValue >= minCgpa;
+
+    const matchesStatus =
+      statusFilter === "All" ||
+      (statusFilter === "Active" && !student.isFirstLogin) ||
+      (statusFilter === "Pending Activation" && student.isFirstLogin);
+
+    return matchesSearch && matchesDepartment && matchesCgpa && matchesStatus;
+  });
 
   const totalStudents = students.length;
   const eligibleCount = students.filter(s => parseFloat(s.cgpa || "0") >= 7).length;
@@ -166,12 +199,7 @@ export default function StudentDirectory() {
             <p className="text-sm text-slate-500">Manage student profiles and placement readiness.</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Moon size={16} />
-            </button>
-            <button className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
-              <Bell size={16} />
-            </button>
+            <TopBarActions settingsPath="/college/settings" />
             <button
               onClick={() => { setShowPanel(true); setActiveMethod("manual"); }}
               className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold"
@@ -280,15 +308,45 @@ export default function StudentDirectory() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
-                Department: All <ChevronDown size={14} />
-              </button>
-              <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
-                CGPA {">"} 8.0 <ChevronDown size={14} />
-              </button>
-              <button className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
-                Status: Active <ChevronDown size={14} />
-              </button>
+              <div className="relative">
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="appearance-none flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 pr-7 bg-white"
+                >
+                  <option value="All">Department: All</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2 top-2.5 text-slate-400" />
+              </div>
+              <div className="relative">
+                <select
+                  value={cgpaFilter}
+                  onChange={(e) => setCgpaFilter(e.target.value)}
+                  className="appearance-none flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 pr-7 bg-white"
+                >
+                  <option value="All">CGPA: All</option>
+                  <option value="gte-9">CGPA &gt;= 9.0</option>
+                  <option value="gte-8">CGPA &gt;= 8.0</option>
+                  <option value="gte-7">CGPA &gt;= 7.0</option>
+                  <option value="gte-6">CGPA &gt;= 6.0</option>
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2 top-2.5 text-slate-400" />
+              </div>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="appearance-none flex items-center gap-2 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 pr-7 bg-white"
+                >
+                  <option value="All">Status: All</option>
+                  <option value="Active">Status: Active</option>
+                  <option value="Pending Activation">Status: Pending</option>
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-2 top-2.5 text-slate-400" />
+              </div>
               <button onClick={fetchStudents} className="h-9 w-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500">
                 <RefreshCw size={16} />
               </button>
