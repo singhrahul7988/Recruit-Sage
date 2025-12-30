@@ -113,6 +113,23 @@ export const addStudentByCollege = async (req: Request, res: Response): Promise<
   const { name, email, branch, cgpa, phone, collegeId } = req.body;
 
   try {
+    const authReq = req as AuthRequest;
+    if (!authReq.userId) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+    const requester = await User.findById(authReq.userId).select('role');
+    if (!requester || requester.role !== 'college') {
+      res.status(403).json({ message: "Only college admins can add students." });
+      return;
+    }
+
+    const targetCollegeId = collegeId || authReq.userId;
+    if (String(targetCollegeId) !== String(authReq.userId)) {
+      res.status(403).json({ message: "College mismatch." });
+      return;
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       res.status(400).json({ message: 'Student email already exists' });
@@ -124,7 +141,7 @@ export const addStudentByCollege = async (req: Request, res: Response): Promise<
       email,
       password: 'welcome123',
       role: 'student',
-      collegeId,
+      collegeId: targetCollegeId,
       isFirstLogin: true,
       branch: branch || "",
       cgpa: cgpa || "",
@@ -165,6 +182,23 @@ export const addStudentsBulk = async (req: Request, res: Response): Promise<void
   const { students, collegeId } = req.body;
 
   try {
+    const authReq = req as AuthRequest;
+    if (!authReq.userId) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+    const requester = await User.findById(authReq.userId).select('role');
+    if (!requester || requester.role !== 'college') {
+      res.status(403).json({ message: "Only college admins can bulk upload students." });
+      return;
+    }
+
+    const targetCollegeId = collegeId || authReq.userId;
+    if (String(targetCollegeId) !== String(authReq.userId)) {
+      res.status(403).json({ message: "College mismatch." });
+      return;
+    }
+
     let successCount = 0;
     let failedCount = 0;
 
@@ -188,7 +222,7 @@ export const addStudentsBulk = async (req: Request, res: Response): Promise<void
           email,
           password: 'welcome123',
           role: 'student',
-          collegeId,
+          collegeId: targetCollegeId,
           isFirstLogin: true,
           branch: branch || "", 
           cgpa: typeof cgpa === 'number' ? cgpa.toString() : (cgpa || ""),
@@ -252,6 +286,25 @@ export const updateUserProfile = async (req: AuthRequest, res: Response): Promis
 export const getStudentsByCollege = async (req: Request, res: Response): Promise<void> => {
   const { collegeId } = req.params;
   try {
+    const authReq = req as AuthRequest;
+    if (!authReq.userId) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
+    const requester = await User.findById(authReq.userId).select('role collegeId');
+    if (!requester) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    const isCollegeOwner = requester.role === 'college' && String(requester._id) === String(collegeId);
+    const isCollegeMember = requester.role === 'college_member' && String(requester.collegeId || "") === String(collegeId);
+    if (!isCollegeOwner && !isCollegeMember) {
+      res.status(403).json({ message: "Not authorized to view this student list." });
+      return;
+    }
+
     const students = await User.find({ collegeId, role: 'student' }).select('-password');
     res.json(students);
   } catch (error: any) {
@@ -261,6 +314,27 @@ export const getStudentsByCollege = async (req: Request, res: Response): Promise
 
 export const deleteStudent = async (req: Request, res: Response): Promise<void> => {
     try {
+        const authReq = req as AuthRequest;
+        if (!authReq.userId) {
+          res.status(401).json({ message: "Not authorized" });
+          return;
+        }
+        const requester = await User.findById(authReq.userId).select('role');
+        if (!requester || requester.role !== 'college') {
+          res.status(403).json({ message: "Only college admins can remove students." });
+          return;
+        }
+
+        const student = await User.findById(req.params.id).select('role collegeId');
+        if (!student || student.role !== 'student') {
+          res.status(404).json({ message: "Student not found" });
+          return;
+        }
+        if (String(student.collegeId || "") !== String(authReq.userId)) {
+          res.status(403).json({ message: "Not authorized to remove this student." });
+          return;
+        }
+
         await User.findByIdAndDelete(req.params.id);
         res.json({ message: "Student removed" });
     } catch (error: any) {
@@ -272,6 +346,23 @@ export const addCollegeStaff = async (req: Request, res: Response): Promise<void
   const { name, email, collegeId } = req.body;
 
   try {
+    const authReq = req as AuthRequest;
+    if (!authReq.userId) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+    const requester = await User.findById(authReq.userId).select('role');
+    if (!requester || requester.role !== 'college') {
+      res.status(403).json({ message: "Only college admins can add staff." });
+      return;
+    }
+
+    const targetCollegeId = collegeId || authReq.userId;
+    if (String(targetCollegeId) !== String(authReq.userId)) {
+      res.status(403).json({ message: "College mismatch." });
+      return;
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       res.status(400).json({ message: 'Email already in use' });
@@ -283,7 +374,7 @@ export const addCollegeStaff = async (req: Request, res: Response): Promise<void
       email,
       password: 'staff123',
       role: 'college_member',
-      collegeId,
+      collegeId: targetCollegeId,
       isFirstLogin: true
     });
 
@@ -295,6 +386,25 @@ export const addCollegeStaff = async (req: Request, res: Response): Promise<void
 
 export const getTeamMembers = async (req: Request, res: Response): Promise<void> => {
     try {
+        const authReq = req as AuthRequest;
+        if (!authReq.userId) {
+          res.status(401).json({ message: "Not authorized" });
+          return;
+        }
+
+        const requester = await User.findById(authReq.userId).select('role collegeId');
+        if (!requester) {
+          res.status(404).json({ message: "User not found" });
+          return;
+        }
+
+        const isCollegeOwner = requester.role === 'college' && String(requester._id) === String(req.params.collegeId);
+        const isCollegeMember = requester.role === 'college_member' && String(requester.collegeId || "") === String(req.params.collegeId);
+        if (!isCollegeOwner && !isCollegeMember) {
+          res.status(403).json({ message: "Not authorized to view this team." });
+          return;
+        }
+
         const team = await User.find({ 
             collegeId: req.params.collegeId, 
             role: 'college_member' 

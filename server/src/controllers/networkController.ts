@@ -168,8 +168,18 @@ export const respondToRequest = async (req: AuthRequest, res: Response): Promise
 
 // @desc    Get All Colleges (For Search)
 // @route   GET /api/network/search-colleges
-export const getAllColleges = async (req: Request, res: Response): Promise<void> => {
+export const getAllColleges = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        if (!req.userId) {
+            res.status(401).json({ message: "Not authorized" });
+            return;
+        }
+        const requester = await User.findById(req.userId).select('role');
+        if (!requester || !['company', 'college', 'college_member'].includes(requester.role)) {
+            res.status(403).json({ message: "Not authorized to view colleges." });
+            return;
+        }
+
         const colleges = await User.find({ role: 'college' }).select('name email branch');
         res.json(colleges);
     } catch (error: any) {
@@ -179,8 +189,18 @@ export const getAllColleges = async (req: Request, res: Response): Promise<void>
 
 // @desc    Get All Companies (For Search)
 // @route   GET /api/network/search-companies
-export const getAllCompanies = async (req: Request, res: Response): Promise<void> => {
+export const getAllCompanies = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        if (!req.userId) {
+            res.status(401).json({ message: "Not authorized" });
+            return;
+        }
+        const requester = await User.findById(req.userId).select('role');
+        if (!requester || !['company', 'college', 'college_member'].includes(requester.role)) {
+            res.status(403).json({ message: "Not authorized to view companies." });
+            return;
+        }
+
         const companies = await User.find({ role: 'company' }).select('name email');
         res.json(companies);
     } catch (error: any) {
