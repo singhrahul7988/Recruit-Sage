@@ -7,7 +7,8 @@ import {
   GraduationCap,
   Users,
   Briefcase,
-  ChevronRight
+  ChevronRight,
+  ArrowUpRight
 } from "lucide-react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
@@ -15,13 +16,13 @@ import TopBarActions from "../../../components/TopBarActions";
 
 export default function CampusDrivesPage() {
   const router = useRouter();
-  const [colleges, setColleges] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [partnerColleges, setPartnerColleges] = useState<any[]>([]);
+  const [drives, setDrives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAllPending, setShowAllPending] = useState(false);
   const [selectedCollege, setSelectedCollege] = useState<any | null>(null);
 
   const getStoredUser = () => {
@@ -35,6 +36,21 @@ export default function CampusDrivesPage() {
     } catch {
       return { error: "Session data is corrupted. Please log in again." };
     }
+  };
+
+  const normalizeId = (value: any) => String(value?._id ?? value ?? "");
+
+  const extractPartnerColleges = (items: any[], userId: string) => {
+    const active = items.filter((item) => item.status === "Active");
+    const colleges = active
+      .map((item) => {
+        const requesterId = normalizeId(item.requesterId);
+        const recipientId = normalizeId(item.recipientId);
+        const other = requesterId === userId ? item.recipientId : item.requesterId;
+        return other;
+      })
+      .filter((item) => item && item.role === "college");
+    return Array.from(new Map(colleges.map((college) => [normalizeId(college), college])).values());
   };
 
   const loadData = async () => {
@@ -52,12 +68,26 @@ export default function CampusDrivesPage() {
       }
       const userId = user._id;
 
-      const [collegesRes, requestsRes] = await Promise.all([
-        api.get("/api/network/search-colleges"),
-        api.get(`/api/network/requests/${userId}`)
+      const results = await Promise.allSettled([
+        api.get(`/api/network/requests/${userId}`),
+        api.get(`/api/jobs/company/${userId}`)
       ]);
-      setColleges(collegesRes.data || []);
-      setRequests(requestsRes.data || []);
+
+      if (results[0].status === "fulfilled") {
+        const requestData = results[0].value.data || [];
+        setRequests(requestData);
+        setPartnerColleges(extractPartnerColleges(requestData, String(userId)));
+      } else {
+        setRequests([]);
+        setPartnerColleges([]);
+        setActionMessage("Unable to load partner campuses. Try again.");
+      }
+
+      if (results[1].status === "fulfilled") {
+        setDrives(results[1].value.data || []);
+      } else {
+        setDrives([]);
+      }
     } catch (error) {
       console.error("Failed to load campus drives");
       setErrorMsg("Failed to load campus drives. Please refresh.");
@@ -70,44 +100,22 @@ export default function CampusDrivesPage() {
     loadData();
   }, []);
 
-  const getStatus = (collegeId: string) => {
-    const req = requests.find((r) => r?.recipientId?._id === collegeId || r?.requesterId?._id === collegeId);
-    return req ? req.status : null;
-  };
-
-  const handleConnect = async (collegeId: string) => {
-    try {
-      const { user, error } = getStoredUser();
-      if (!user) {
-        setActionMessage(error || "Session missing. Please log in again.");
-        return;
-      }
-      if (!user._id) {
-        setActionMessage("User session is incomplete. Please log in again.");
-        return;
-      }
-      const requesterId = user._id;
-      await api.post("/api/network/connect", { requesterId, recipientId: collegeId });
-      setActionMessage("Connection request sent.");
-      loadData();
-    } catch (error: any) {
-      setActionMessage(error.response?.data?.message || "Failed to connect");
-    }
-  };
-
   const handleOpenDetails = (college: any) => {
     setSelectedCollege(college);
   };
 
-  const activePartners = requests.filter((r) => r.status === "Active");
-  const pendingRequests = requests.filter((r) => r.status === "Pending");
+  const pendingRequests = requests.filter(
+    (r) => r.status === "Pending" && r.requesterId?.role === "college"
+  );
 
-  const upcomingDrives = activePartners.length || 0;
-  const participatingColleges = activePartners.length || 0;
-  const registeredStudents = participatingColleges * 120 + 3450;
-  const offersRolledOut = participatingColleges * 5 + 142;
+  const openDrives = drives.filter((drive) => drive.status === "Open").length;
+  const closingSoon = drives.filter((drive) => {
+    if (!drive.deadline) return false;
+    const days = (new Date(drive.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return days > 0 && days <= 7;
+  }).length;
 
-  const filteredColleges = colleges.filter((college) => {
+  const filteredColleges = partnerColleges.filter((college) => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -115,6 +123,14 @@ export default function CampusDrivesPage() {
       college?.email?.toLowerCase().includes(term)
     );
   });
+
+  const getCollegeDrives = (collegeId: string) =>
+    drives.filter((drive) => String(drive.collegeId) === String(collegeId));
+
+  const handleCreateDrive = (collegeId?: string) => {
+    const query = collegeId ? `?collegeId=${encodeURIComponent(String(collegeId))}` : "";
+    router.push(`/company/create-drive${query}`);
+  };
 
   return (
     <CompanyLayout>
@@ -129,7 +145,7 @@ export default function CampusDrivesPage() {
             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
               <Search size={16} className="text-slate-400" />
               <input
-                placeholder="Search colleges, drives..."
+                placeholder="Search connected campuses..."
                 className="outline-none text-sm w-52 text-slate-600"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -137,7 +153,7 @@ export default function CampusDrivesPage() {
             </div>
             <TopBarActions settingsPath="/company/settings" showSettings={false} />
             <button
-              onClick={() => router.push("/company/create-drive")}
+              onClick={() => handleCreateDrive()}
               className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold"
             >
               Register New Drive
@@ -155,34 +171,34 @@ export default function CampusDrivesPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <Calendar size={18} className="text-blue-500" />
-              <span className="text-xs text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">+2 this week</span>
+              <span className="text-xs text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">{openDrives} open</span>
             </div>
-            <div className="text-xs text-slate-500">Upcoming Drives</div>
-            <div className="text-2xl font-semibold text-slate-900">{upcomingDrives}</div>
+            <div className="text-xs text-slate-500">Published Drives</div>
+            <div className="text-2xl font-semibold text-slate-900">{drives.length}</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <GraduationCap size={18} className="text-blue-500" />
-              <span className="text-xs text-slate-400">This quarter</span>
+              <span className="text-xs text-slate-400">Connected</span>
             </div>
-            <div className="text-xs text-slate-500">Participating Colleges</div>
-            <div className="text-2xl font-semibold text-slate-900">{participatingColleges}</div>
+            <div className="text-xs text-slate-500">Active Campuses</div>
+            <div className="text-2xl font-semibold text-slate-900">{partnerColleges.length}</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <Users size={18} className="text-blue-500" />
-              <span className="text-xs text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">85% qualified</span>
+              <span className="text-xs text-amber-500 bg-amber-50 px-2 py-1 rounded-full">Closing soon</span>
             </div>
-            <div className="text-xs text-slate-500">Registered Students</div>
-            <div className="text-2xl font-semibold text-slate-900">{registeredStudents}</div>
+            <div className="text-xs text-slate-500">Deadlines (7 days)</div>
+            <div className="text-2xl font-semibold text-slate-900">{closingSoon}</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <Briefcase size={18} className="text-blue-500" />
               <span className="text-xs text-slate-400">Current cycle</span>
             </div>
-            <div className="text-xs text-slate-500">Offers Rolled Out</div>
-            <div className="text-2xl font-semibold text-slate-900">{offersRolledOut}</div>
+            <div className="text-xs text-slate-500">Open Drives</div>
+            <div className="text-2xl font-semibold text-slate-900">{openDrives}</div>
           </div>
         </div>
 
@@ -196,8 +212,8 @@ export default function CampusDrivesPage() {
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <div>
-                <div className="text-sm font-semibold text-slate-800">Upcoming Campus Drives</div>
-                <div className="text-xs text-slate-500">Manage scheduled events for this quarter</div>
+                <div className="text-sm font-semibold text-slate-800">Active Partner Campuses</div>
+                <div className="text-xs text-slate-500">Send drives only to connected colleges</div>
               </div>
               <button
                 type="button"
@@ -212,48 +228,39 @@ export default function CampusDrivesPage() {
                 <thead className="text-xs uppercase text-slate-400 border-b border-slate-200">
                   <tr>
                     <th className="p-4">College / Institute</th>
-                    <th className="p-4">Date & Slot</th>
                     <th className="p-4">Status</th>
-                    <th className="p-4">Registrations</th>
+                    <th className="p-4">Drives</th>
                     <th className="p-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {loading ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-slate-500">Loading drives...</td></tr>
+                    <tr><td colSpan={4} className="p-8 text-center text-slate-500">Loading campuses...</td></tr>
                   ) : filteredColleges.length === 0 ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-slate-500">No colleges found.</td></tr>
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-slate-500">
+                        No active partner campuses yet. Connect in Campus Network.
+                      </td>
+                    </tr>
                   ) : (
-                    filteredColleges.map((college: any, index: number) => {
-                      const status = getStatus(college._id);
-                      const label =
-                        status === "Active" ? "Confirmed" :
-                        status === "Pending" ? "Pending Approval" :
-                        status === "Rejected" ? "Rejected" :
-                        "Draft";
-                      const color =
-                        status === "Active" ? "bg-emerald-50 text-emerald-600" :
-                        status === "Pending" ? "bg-amber-50 text-amber-600" :
-                        status === "Rejected" ? "bg-red-50 text-red-600" :
-                        "bg-slate-100 text-slate-600";
+                    filteredColleges.map((college: any) => {
+                      const collegeDrives = getCollegeDrives(college._id);
                       return (
                         <tr key={college._id} className="hover:bg-slate-50">
                           <td className="p-4">
                             <div className="font-semibold text-slate-800">{college.name}</div>
                             <div className="text-xs text-slate-500">{college.email}</div>
                           </td>
-                          <td className="p-4 text-slate-500">
-                            {index % 2 === 0 ? "Oct 24, 2023" : "Nov 02, 2023"}
-                            <div className="text-xs text-slate-400">{index % 2 === 0 ? "10:00 AM - 4:00 PM" : "09:00 AM - 5:00 PM"}</div>
-                          </td>
                           <td className="p-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
-                              {label}
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
+                              Active
                             </span>
                           </td>
-                          <td className="p-4 text-slate-600">{status === "Active" ? 200 + index * 15 : "-"}</td>
+                          <td className="p-4 text-slate-600">
+                            {collegeDrives.length > 0 ? `${collegeDrives.length} drives` : "No drives yet"}
+                          </td>
                           <td className="p-4 text-right">
-                            {status ? (
+                            <div className="flex items-center justify-end gap-3">
                               <button
                                 type="button"
                                 onClick={() => handleOpenDetails(college)}
@@ -261,11 +268,14 @@ export default function CampusDrivesPage() {
                               >
                                 <ChevronRight size={16} />
                               </button>
-                            ) : (
-                              <button onClick={() => handleConnect(college._id)} className="text-blue-600 text-xs font-semibold">
-                                Connect
+                              <button
+                                type="button"
+                                onClick={() => handleCreateDrive(college._id)}
+                                className="text-blue-600 text-xs font-semibold"
+                              >
+                                Create Drive
                               </button>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -278,17 +288,17 @@ export default function CampusDrivesPage() {
 
           <div className="space-y-4">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <div className="text-sm font-semibold text-slate-800 mb-3">Pending Actions</div>
+              <div className="text-sm font-semibold text-slate-800 mb-3">Handshake Requests</div>
               {pendingRequests.length === 0 ? (
-                <div className="text-xs text-slate-500">No pending actions.</div>
+                <div className="text-xs text-slate-500">No pending handshake requests.</div>
               ) : (
                 <div className="space-y-3">
-                  {pendingRequests.slice(0, showAllPending ? pendingRequests.length : 2).map((req: any) => {
+                  {pendingRequests.slice(0, 2).map((req: any) => {
                     const college = req.requesterId.role === "college" ? req.requesterId : req.recipientId;
                     return (
                       <div key={req._id} className="border border-slate-100 rounded-xl p-3">
-                        <div className="text-sm font-semibold text-slate-800">Confirm slot: {college.name}</div>
-                        <div className="text-xs text-slate-500">Awaiting confirmation. Deadline today 5 PM.</div>
+                        <div className="text-sm font-semibold text-slate-800">{college.name}</div>
+                        <div className="text-xs text-slate-500">Pending approval in Campus Network.</div>
                       </div>
                     );
                   })}
@@ -296,17 +306,24 @@ export default function CampusDrivesPage() {
               )}
               <button
                 type="button"
-                onClick={() => setShowAllPending((prev) => !prev)}
+                onClick={() => router.push("/company/campus-network")}
                 className="mt-4 w-full border border-slate-200 rounded-lg py-2 text-sm text-slate-600 font-semibold"
               >
-                {showAllPending ? "Collapse Tasks" : "View All Tasks"}
+                Review in Campus Network
               </button>
             </div>
 
-            <div className="bg-blue-600 text-white rounded-2xl p-4 shadow-sm">
-              <div className="text-xs uppercase text-blue-100">Live Now</div>
-              <div className="text-lg font-semibold mt-1">Pre-Placement Talk</div>
-              <div className="text-xs text-blue-100 mt-2">184 students are currently attending.</div>
+            <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-sm">
+              <div className="text-xs uppercase text-slate-300">Quick Action</div>
+              <div className="text-lg font-semibold mt-1">Publish a new drive</div>
+              <div className="text-xs text-slate-300 mt-2">Select a connected campus to start hiring.</div>
+              <button
+                type="button"
+                onClick={() => handleCreateDrive()}
+                className="mt-4 w-full flex items-center justify-center gap-2 bg-white text-slate-900 rounded-lg py-2 text-sm font-semibold"
+              >
+                Create Drive <ArrowUpRight size={14} />
+              </button>
             </div>
           </div>
         </div>
@@ -334,7 +351,7 @@ export default function CampusDrivesPage() {
                 </div>
                 <div>
                   <div className="text-xs text-slate-400">Status</div>
-                  <div className="font-semibold text-slate-700">{getStatus(selectedCollege._id) || "Draft"}</div>
+                  <div className="font-semibold text-slate-700">Active</div>
                 </div>
                 <div>
                   <div className="text-xs text-slate-400">Location</div>
@@ -342,26 +359,20 @@ export default function CampusDrivesPage() {
                 </div>
               </div>
               <div className="mt-6 flex items-center justify-end gap-3">
-                {getStatus(selectedCollege._id) ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCollege(null)}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
-                  >
-                    Done
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await handleConnect(selectedCollege._id);
-                      setSelectedCollege(null);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
-                  >
-                    Send Invite
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleCreateDrive(selectedCollege._id)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold"
+                >
+                  Create Drive
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCollege(null)}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+                >
+                  Done
+                </button>
               </div>
             </div>
           </div>

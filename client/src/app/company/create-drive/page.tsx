@@ -3,10 +3,11 @@ import React, { useState, useEffect } from "react";
 import CompanyLayout from "../../../components/CompanyLayout";
 import { Briefcase, DollarSign, MapPin, CheckCircle, Layers } from "lucide-react";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CreateDrive() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -25,6 +26,8 @@ export default function CreateDrive() {
   const [branches, setBranches] = useState({
     CSE: true, ECE: true, ME: false, CE: false
   });
+
+  const preselectedCollegeId = searchParams.get("collegeId");
 
   // 1. Fetch Connected Colleges (Partners)
   useEffect(() => {
@@ -56,6 +59,14 @@ export default function CreateDrive() {
     };
     fetchPartners();
   }, []);
+
+  useEffect(() => {
+    if (!preselectedCollegeId || partners.length === 0) return;
+    const exists = partners.some((partner) => String(partner._id) === String(preselectedCollegeId));
+    if (exists) {
+      setFormData((prev) => ({ ...prev, collegeId: preselectedCollegeId }));
+    }
+  }, [preselectedCollegeId, partners]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +121,7 @@ export default function CreateDrive() {
                                 <option value="">Select a College</option>
                                 {partners.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
                             </select>
-                            {partners.length === 0 && <p className="text-xs text-red-500 mt-1">No partners found. Connect in Campus Drives first.</p>}
+                            {partners.length === 0 && <p className="text-xs text-red-500 mt-1">No partners found. Connect in Campus Network first.</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">CTC / Package</label>
