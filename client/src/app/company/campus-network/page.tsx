@@ -6,7 +6,8 @@ import {
   Users,
   Calendar,
   Building2,
-  ChevronDown
+  ChevronDown,
+  X
 } from "lucide-react";
 import api from "@/lib/api";
 import TopBarActions from "../../../components/TopBarActions";
@@ -23,7 +24,7 @@ type College = {
   name: string;
   email: string;
   branch?: string;
-  region?: string;
+  state?: string;
 };
 
 export default function CampusNetworkPage() {
@@ -33,7 +34,7 @@ export default function CampusNetworkPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [regionFilter, setRegionFilter] = useState("All India");
+  const [stateFilter, setStateFilter] = useState("All India");
   const [streamFilter, setStreamFilter] = useState("All");
   const [actionMessage, setActionMessage] = useState("");
   const [showInvitePanel, setShowInvitePanel] = useState(false);
@@ -41,6 +42,18 @@ export default function CampusNetworkPage() {
   const [showAllRecommended, setShowAllRecommended] = useState(false);
   const [discoverResults, setDiscoverResults] = useState<College[] | null>(null);
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
+
+  // Indian States & Union Territories
+  const indianStates = [
+    "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam",
+    "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli",
+    "Daman and Diu", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh",
+    "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep",
+    "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim",
+    "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
+    "West Bengal"
+  ].sort();
 
   const getStoredUser = () => {
     const storedUser = localStorage.getItem("user");
@@ -92,7 +105,7 @@ export default function CampusNetworkPage() {
   useEffect(() => {
     setDiscoverResults(null);
     setShowAllRecommended(false);
-  }, [regionFilter, streamFilter]);
+  }, [stateFilter, streamFilter]);
 
   const getStatus = (collegeId: string) => {
     const req = requests.find(
@@ -149,11 +162,11 @@ export default function CampusNetworkPage() {
         college.email.toLowerCase().includes(term);
       const matchesStream =
         streamFilter === "All" || (college.branch || "").toLowerCase() === streamFilter.toLowerCase();
-      const matchesRegion =
-        regionFilter === "All India" || (college.region || "").toLowerCase() === regionFilter.toLowerCase();
-      return matchesSearch && matchesStream && matchesRegion;
+      const matchesState =
+        stateFilter === "All India" || college.state === stateFilter;
+      return matchesSearch && matchesStream && matchesState;
     });
-  }, [colleges, searchTerm, streamFilter, regionFilter]);
+  }, [colleges, searchTerm, streamFilter, stateFilter]);
 
   const visibleRecommended = (discoverResults || filteredColleges).slice(
     0,
@@ -211,9 +224,10 @@ export default function CampusNetworkPage() {
               <button
                 type="button"
                 onClick={() => setShowInvitePanel(false)}
-                className="text-xs text-slate-500"
+                className="text-slate-500 hover:text-slate-700 transition-colors duration-200 flex items-center justify-center"
+                title="Close"
               >
-                Close
+                <X size={18} />
               </button>
             </div>
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4">
@@ -410,17 +424,17 @@ export default function CampusNetworkPage() {
               <div className="text-sm font-semibold text-slate-800 mb-4">Discover Colleges</div>
               <div className="space-y-3 text-sm">
                 <div>
-                  <label className="text-xs text-slate-500">Region</label>
+                  <label className="text-xs text-slate-500">State</label>
                   <div className="relative mt-2">
                     <select
-                      value={regionFilter}
-                      onChange={(event) => setRegionFilter(event.target.value)}
+                      value={stateFilter}
+                      onChange={(event) => setStateFilter(event.target.value)}
                       className="appearance-none w-full border border-slate-200 rounded-lg px-3 py-2 pr-7 text-sm text-slate-600 bg-white"
                     >
-                      <option>All India</option>
-                      <option>South</option>
-                      <option>North</option>
-                      <option>West</option>
+                      <option value="All India">All India</option>
+                      {indianStates.map((state) => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
                     </select>
                     <ChevronDown size={14} className="pointer-events-none absolute right-2 top-2.5 text-slate-400" />
                   </div>
@@ -515,9 +529,10 @@ export default function CampusNetworkPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedCollege(null)}
-                  className="text-xs text-slate-500"
+                  className="text-slate-500 hover:text-slate-700 transition-colors duration-200 flex items-center justify-center"
+                  title="Close"
                 >
-                  Close
+                  <X size={18} />
                 </button>
               </div>
               <div className="space-y-3 text-sm text-slate-600">
